@@ -16,13 +16,22 @@ class ResumeOptimizer:
         ai_provider: str | None = None,
         ai_api_key: str | None = None,
         ai_model: str | None = None,
+        ai_base_url: str | None = None,
     ) -> str:
         provider = (ai_provider or settings.ai_provider or "mock").lower().strip()
         api_key = (ai_api_key or settings.doubao_api_key or "").strip()
         model = (ai_model or settings.doubao_model).strip()
 
+        base_url = (ai_base_url or settings.doubao_base_url).strip()
+
         if provider == "doubao" and api_key:
-            return await ResumeOptimizer._optimize_with_doubao(parsed_resume, job_info, api_key=api_key, model=model)
+            return await ResumeOptimizer._optimize_with_doubao(
+                parsed_resume,
+                job_info,
+                api_key=api_key,
+                model=model,
+                base_url=base_url,
+            )
         return ResumeOptimizer._mock_optimize(parsed_resume, job_info)
 
     @staticmethod
@@ -35,7 +44,13 @@ class ResumeOptimizer:
         )
 
     @staticmethod
-    async def _optimize_with_doubao(parsed_resume: ParsedResume, job_info: JobInfo, api_key: str, model: str) -> str:
+    async def _optimize_with_doubao(
+        parsed_resume: ParsedResume,
+        job_info: JobInfo,
+        api_key: str,
+        model: str,
+        base_url: str,
+    ) -> str:
         payload = {
             "model": model,
             "messages": [
@@ -50,7 +65,7 @@ class ResumeOptimizer:
         }
         async with httpx.AsyncClient(timeout=settings.request_timeout_seconds) as client:
             response = await client.post(
-                f"{settings.doubao_base_url}/chat/completions", headers=headers, content=json.dumps(payload)
+                f"{base_url}/chat/completions", headers=headers, content=json.dumps(payload)
             )
             response.raise_for_status()
             data = response.json()

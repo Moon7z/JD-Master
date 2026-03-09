@@ -40,7 +40,8 @@ JD-Master/
   - 默认 `mock` 模式（无密钥即可运行，便于本地演示）
   - 可切换 `doubao` 模式（配置 API Key 后调用豆包接口）
 - **结果输出**：前端展示优化结果，后端支持导出 docx 文件。
-- **AI Key入口**：前端与后端体验页都支持按请求输入 `AI Provider / API Key / Model`（不落库）。
+- **JD预览入口**：输入岗位链接后可先调用预览接口查看提取到的岗位结构化信息。
+- **模型自由配置**：前端与后端体验页都支持按请求输入 `AI Provider / API Key / Model / Base URL`（不落库）。
 
 ## 3. 本地启动
 
@@ -100,6 +101,12 @@ docker compose up --build
 
 ## 5. API 说明
 
+### `POST /api/job-preview`
+
+- `multipart/form-data`
+  - `job_url`: 岗位链接
+- 返回：岗位结构化信息（title/company/salary/location/responsibilities/requirements）
+
 ### `POST /api/optimize`
 
 - `multipart/form-data`
@@ -108,6 +115,7 @@ docker compose up --build
   - `ai_provider`: 可选，`mock`/`doubao`
   - `ai_api_key`: 可选，本次请求使用
   - `ai_model`: 可选，本次请求使用
+  - `ai_base_url`: 可选，本次请求使用
 - 返回：
   - `optimized_resume_markdown`
   - `parsed_resume`

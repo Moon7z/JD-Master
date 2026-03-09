@@ -6,12 +6,34 @@ const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000'
 export default function App() {
   const [file, setFile] = useState(null)
   const [jobUrl, setJobUrl] = useState('')
+  const [jobPreview, setJobPreview] = useState(null)
   const [aiProvider, setAiProvider] = useState('mock')
   const [aiApiKey, setAiApiKey] = useState('')
   const [aiModel, setAiModel] = useState('')
+  const [aiBaseUrl, setAiBaseUrl] = useState('')
   const [loading, setLoading] = useState(false)
+  const [previewing, setPreviewing] = useState(false)
   const [result, setResult] = useState('')
   const [message, setMessage] = useState('')
+
+  const handlePreviewJD = async () => {
+    if (!jobUrl) {
+      setMessage('请先填写岗位链接。')
+      return
+    }
+    const formData = new FormData()
+    formData.append('job_url', jobUrl)
+    setPreviewing(true)
+    setMessage('')
+    try {
+      const { data } = await axios.post(`${API_BASE}/api/job-preview`, formData)
+      setJobPreview(data)
+    } catch (error) {
+      setMessage(error?.response?.data?.detail || 'JD预览失败，请稍后重试。')
+    } finally {
+      setPreviewing(false)
+    }
+  }
 
   const handleOptimize = async () => {
     if (!file || !jobUrl) {
@@ -25,12 +47,14 @@ export default function App() {
     formData.append('ai_provider', aiProvider)
     formData.append('ai_api_key', aiApiKey)
     formData.append('ai_model', aiModel)
+    formData.append('ai_base_url', aiBaseUrl)
 
     setLoading(true)
     setMessage('')
     try {
       const { data } = await axios.post(`${API_BASE}/api/optimize`, formData)
       setResult(data.optimized_resume_markdown)
+      setJobPreview(data.job_info)
     } catch (error) {
       setMessage(error?.response?.data?.detail || '优化失败，请稍后重试。')
     } finally {
@@ -78,6 +102,9 @@ export default function App() {
           value={jobUrl}
           onChange={(e) => setJobUrl(e.target.value)}
         />
+        <button onClick={handlePreviewJD} disabled={previewing}>
+          {previewing ? '解析中...' : '预览JD'}
+        </button>
 
         <label className="label">3) AI 模式</label>
         <select value={aiProvider} onChange={(e) => setAiProvider(e.target.value)}>
@@ -101,10 +128,23 @@ export default function App() {
           onChange={(e) => setAiModel(e.target.value)}
         />
 
+        <label className="label">6) AI Base URL（可选）</label>
+        <input
+          type="url"
+          placeholder="https://ark.cn-beijing.volces.com/api/v3"
+          value={aiBaseUrl}
+          onChange={(e) => setAiBaseUrl(e.target.value)}
+        />
+
         <button onClick={handleOptimize} disabled={loading}>
           {loading ? '处理中...' : '开始优化'}
         </button>
         {message && <p className="msg">{message}</p>}
+      </section>
+
+      <section className="panel">
+        <h2>岗位JD预览</h2>
+        <pre>{jobPreview ? JSON.stringify(jobPreview, null, 2) : '暂无岗位预览，点击“预览JD”后查看。'}</pre>
       </section>
 
       <section className="panel">

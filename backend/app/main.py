@@ -28,6 +28,15 @@ app.add_middleware(
 _result_cache: dict[str, str] = {}
 
 
+async def _fetch_job_info(job_url: str):
+    if settings.jd_fetch_mode == "ocr_browser":
+        try:
+            return await JobOCRFetcher.fetch(job_url)
+        except Exception:
+            return await JobFetcher.fetch(job_url)
+    return await JobFetcher.fetch(job_url)
+
+
 @app.get("/", response_class=HTMLResponse)
 async def playground() -> HTMLResponse:
     html = """
@@ -71,11 +80,20 @@ async def playground() -> HTMLResponse:
     <label class="label">AI 模型（可选）</label>
     <input id="aiModel" type="text" placeholder="doubao-seed-1-6-250615" />
 
+    <label class="label">AI Base URL（可选）</label>
+    <input id="aiBaseUrl" type="url" placeholder="https://ark.cn-beijing.volces.com/api/v3" />
+
     <div class="row" style="margin-top:10px;">
+      <button id="previewBtn" type="button">预览JD</button>
       <button id="optimizeBtn">开始优化</button>
       <button id="downloadBtn" disabled>下载 DOCX</button>
     </div>
     <p id="msg" class="msg"></p>
+  </div>
+
+  <div class="card">
+    <h3>JD 预览</h3>
+    <textarea id="jobInfo" placeholder="点击“预览JD”后查看岗位解析结果" style="min-height:160px;"></textarea>
   </div>
 
   <div class="card">
@@ -84,10 +102,38 @@ async def playground() -> HTMLResponse:
   </div>
 
 <script>
+  const previewBtn = document.getElementById('previewBtn');
   const optimizeBtn = document.getElementById('optimizeBtn');
   const downloadBtn = document.getElementById('downloadBtn');
   const msg = document.getElementById('msg');
   const result = document.getElementById('result');
+  const jobInfo = document.getElementById('jobInfo');
+
+
+
+  previewBtn.onclick = async () => {
+    msg.textContent = '';
+    const jobUrl = document.getElementById('jobUrl').value.trim();
+    if (!jobUrl) {
+      msg.textContent = '请先填写岗位链接';
+      return;
+    }
+    const form = new FormData();
+    form.append('job_url', jobUrl);
+    previewBtn.disabled = true;
+    previewBtn.textContent = '解析中...';
+    try {
+      const resp = await fetch('/api/job-preview', { method: 'POST', body: form });
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.detail || '预览失败');
+      jobInfo.value = JSON.stringify(data, null, 2);
+    } catch (e) {
+      msg.textContent = e.message || '预览失败';
+    } finally {
+      previewBtn.disabled = false;
+      previewBtn.textContent = '预览JD';
+    }
+  }
 
   optimizeBtn.onclick = async () => {
     msg.textContent = '';
@@ -104,6 +150,7 @@ async def playground() -> HTMLResponse:
     form.append('ai_provider', document.getElementById('aiProvider').value);
     form.append('ai_api_key', document.getElementById('aiApiKey').value);
     form.append('ai_model', document.getElementById('aiModel').value);
+    form.append('ai_base_url', document.getElementById('aiBaseUrl').value);
 
     optimizeBtn.disabled = true;
     optimizeBtn.textContent = '处理中...';
@@ -151,6 +198,14 @@ async def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
+@app.post("/api/job-preview")
+async def preview_job(job_url: str = Form(...)):
+    try:
+        return await _fetch_job_info(job_url)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=500, detail=f"岗位信息预览失败: {exc}") from exc
+
+
 @app.post("/api/optimize", response_model=OptimizeResponse)
 async def optimize_resume(
     resume: UploadFile = File(...),
@@ -158,6 +213,7 @@ async def optimize_resume(
     ai_provider: str | None = Form(default=None),
     ai_api_key: str | None = Form(default=None),
     ai_model: str | None = Form(default=None),
+    ai_base_url: str | None = Form(default=None),
 ) -> OptimizeResponse:
     suffix = resume.filename.lower().split(".")[-1] if resume.filename else ""
     if suffix not in {"docx", "pdf"}:
@@ -169,19 +225,14 @@ async def optimize_resume(
 
     try:
         parsed_resume = ResumeParser.parse(resume.filename or "resume.docx", file_bytes)
-        if settings.jd_fetch_mode == "ocr_browser":
-            try:
-                job_info = await JobOCRFetcher.fetch(job_url)
-            except Exception:
-                job_info = await JobFetcher.fetch(job_url)
-        else:
-            job_info = await JobFetcher.fetch(job_url)
+        job_info = await _fetch_job_info(job_url)
         optimized_resume_markdown = await ResumeOptimizer.optimize(
             parsed_resume,
             job_info,
             ai_provider=ai_provider,
             ai_api_key=ai_api_key,
             ai_model=ai_model,
+            ai_base_url=ai_base_url,
         )
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(status_code=500, detail=f"处理失败: {exc}") from exc
