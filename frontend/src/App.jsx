@@ -6,6 +6,9 @@ const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000'
 export default function App() {
   const [file, setFile] = useState(null)
   const [jobUrl, setJobUrl] = useState('')
+  const [aiProvider, setAiProvider] = useState('mock')
+  const [aiApiKey, setAiApiKey] = useState('')
+  const [aiModel, setAiModel] = useState('')
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState('')
   const [message, setMessage] = useState('')
@@ -19,6 +22,9 @@ export default function App() {
     const formData = new FormData()
     formData.append('resume', file)
     formData.append('job_url', jobUrl)
+    formData.append('ai_provider', aiProvider)
+    formData.append('ai_api_key', aiApiKey)
+    formData.append('ai_model', aiModel)
 
     setLoading(true)
     setMessage('')
@@ -71,6 +77,28 @@ export default function App() {
           placeholder="https://www.zhipin.com/job_detail/..."
           value={jobUrl}
           onChange={(e) => setJobUrl(e.target.value)}
+        />
+
+        <label className="label">3) AI 模式</label>
+        <select value={aiProvider} onChange={(e) => setAiProvider(e.target.value)}>
+          <option value="mock">mock（无需 API Key）</option>
+          <option value="doubao">doubao（需要 API Key）</option>
+        </select>
+
+        <label className="label">4) AI API Key（可选，本次请求生效）</label>
+        <input
+          type="password"
+          placeholder="输入豆包 API Key"
+          value={aiApiKey}
+          onChange={(e) => setAiApiKey(e.target.value)}
+        />
+
+        <label className="label">5) AI 模型（可选）</label>
+        <input
+          type="text"
+          placeholder="doubao-seed-1-6-250615"
+          value={aiModel}
+          onChange={(e) => setAiModel(e.target.value)}
         />
 
         <button onClick={handleOptimize} disabled={loading}>

@@ -10,9 +10,19 @@ from app.schemas import JobInfo, ParsedResume
 
 class ResumeOptimizer:
     @staticmethod
-    async def optimize(parsed_resume: ParsedResume, job_info: JobInfo) -> str:
-        if settings.ai_provider == "doubao" and settings.doubao_api_key:
-            return await ResumeOptimizer._optimize_with_doubao(parsed_resume, job_info)
+    async def optimize(
+        parsed_resume: ParsedResume,
+        job_info: JobInfo,
+        ai_provider: str | None = None,
+        ai_api_key: str | None = None,
+        ai_model: str | None = None,
+    ) -> str:
+        provider = (ai_provider or settings.ai_provider or "mock").lower().strip()
+        api_key = (ai_api_key or settings.doubao_api_key or "").strip()
+        model = (ai_model or settings.doubao_model).strip()
+
+        if provider == "doubao" and api_key:
+            return await ResumeOptimizer._optimize_with_doubao(parsed_resume, job_info, api_key=api_key, model=model)
         return ResumeOptimizer._mock_optimize(parsed_resume, job_info)
 
     @staticmethod
@@ -25,9 +35,9 @@ class ResumeOptimizer:
         )
 
     @staticmethod
-    async def _optimize_with_doubao(parsed_resume: ParsedResume, job_info: JobInfo) -> str:
+    async def _optimize_with_doubao(parsed_resume: ParsedResume, job_info: JobInfo, api_key: str, model: str) -> str:
         payload = {
-            "model": settings.doubao_model,
+            "model": model,
             "messages": [
                 {"role": "system", "content": "你是一位专业中文简历优化助手"},
                 {"role": "user", "content": ResumeOptimizer._build_prompt(parsed_resume, job_info)},
@@ -35,7 +45,7 @@ class ResumeOptimizer:
             "temperature": 0.3,
         }
         headers = {
-            "Authorization": f"Bearer {settings.doubao_api_key}",
+            "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
         }
         async with httpx.AsyncClient(timeout=settings.request_timeout_seconds) as client:

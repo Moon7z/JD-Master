@@ -59,6 +59,18 @@ async def playground() -> HTMLResponse:
     <label class="label">岗位链接（Boss直聘）</label>
     <input id="jobUrl" type="url" placeholder="https://www.zhipin.com/job_detail/..." />
 
+    <label class="label">AI 模式</label>
+    <select id="aiProvider" style="width:100%;padding:10px;border-radius:8px;border:1px solid #d7dbe8;">
+      <option value="mock">mock（不需要 API Key）</option>
+      <option value="doubao">doubao（需要 API Key）</option>
+    </select>
+
+    <label class="label">AI API Key（可选，当前请求生效，不存储）</label>
+    <input id="aiApiKey" type="password" placeholder="输入豆包 API Key" />
+
+    <label class="label">AI 模型（可选）</label>
+    <input id="aiModel" type="text" placeholder="doubao-seed-1-6-250615" />
+
     <div class="row" style="margin-top:10px;">
       <button id="optimizeBtn">开始优化</button>
       <button id="downloadBtn" disabled>下载 DOCX</button>
@@ -89,6 +101,9 @@ async def playground() -> HTMLResponse:
     const form = new FormData();
     form.append('resume', file);
     form.append('job_url', jobUrl);
+    form.append('ai_provider', document.getElementById('aiProvider').value);
+    form.append('ai_api_key', document.getElementById('aiApiKey').value);
+    form.append('ai_model', document.getElementById('aiModel').value);
 
     optimizeBtn.disabled = true;
     optimizeBtn.textContent = '处理中...';
@@ -140,6 +155,9 @@ async def health() -> dict[str, str]:
 async def optimize_resume(
     resume: UploadFile = File(...),
     job_url: str = Form(...),
+    ai_provider: str | None = Form(default=None),
+    ai_api_key: str | None = Form(default=None),
+    ai_model: str | None = Form(default=None),
 ) -> OptimizeResponse:
     suffix = resume.filename.lower().split(".")[-1] if resume.filename else ""
     if suffix not in {"docx", "pdf"}:
@@ -158,7 +176,13 @@ async def optimize_resume(
                 job_info = await JobFetcher.fetch(job_url)
         else:
             job_info = await JobFetcher.fetch(job_url)
-        optimized_resume_markdown = await ResumeOptimizer.optimize(parsed_resume, job_info)
+        optimized_resume_markdown = await ResumeOptimizer.optimize(
+            parsed_resume,
+            job_info,
+            ai_provider=ai_provider,
+            ai_api_key=ai_api_key,
+            ai_model=ai_model,
+        )
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(status_code=500, detail=f"处理失败: {exc}") from exc
 
