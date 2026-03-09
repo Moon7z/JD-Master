@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     doubao_model: str = "doubao-seed-1-6-250615"
 
     request_timeout_seconds: int = 20
+
+    jd_fetch_mode: str = "ocr_browser"
     user_agent: str = (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
         "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"

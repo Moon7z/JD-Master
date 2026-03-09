@@ -11,6 +11,7 @@ from app.config import settings
 from app.schemas import OptimizeResponse
 from app.services.docx_exporter import markdown_to_docx
 from app.services.job_fetcher import JobFetcher
+from app.services.job_ocr_fetcher import JobOCRFetcher
 from app.services.optimizer import ResumeOptimizer
 from app.services.resume_parser import ResumeParser
 
@@ -150,7 +151,13 @@ async def optimize_resume(
 
     try:
         parsed_resume = ResumeParser.parse(resume.filename or "resume.docx", file_bytes)
-        job_info = await JobFetcher.fetch(job_url)
+        if settings.jd_fetch_mode == "ocr_browser":
+            try:
+                job_info = await JobOCRFetcher.fetch(job_url)
+            except Exception:
+                job_info = await JobFetcher.fetch(job_url)
+        else:
+            job_info = await JobFetcher.fetch(job_url)
         optimized_resume_markdown = await ResumeOptimizer.optimize(parsed_resume, job_info)
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(status_code=500, detail=f"处理失败: {exc}") from exc

@@ -59,7 +59,6 @@ class JobFetcher:
         responsibilities = JobFetcher._extract_bullets(text_block, ["岗位职责", "职位描述", "工作内容", "你将负责"])
         requirements = JobFetcher._extract_bullets(text_block, ["任职要求", "职位要求", "岗位要求", "我们希望你"])
 
-        # 极端情况下（反爬或动态渲染）尽量返回可读的降级信息，而非空占位符
         if not responsibilities:
             responsibilities = JobFetcher._fallback_sentences(text_block)
 
@@ -76,6 +75,42 @@ class JobFetcher:
             requirements=requirements,
             original_text=text_block,
         )
+
+    @staticmethod
+    def parse_text(url: str, text: str, page_title: str | None = None) -> JobInfo:
+        clean_text = text or ""
+        title_text = JobFetcher._extract_title_from_title_tag(page_title or "") or f"待解析职位（{urlparse(url).netloc}）"
+        company = JobFetcher._extract_company_from_title(page_title or "")
+        salary = JobFetcher._extract_salary(clean_text)
+        location = JobFetcher._extract_location(clean_text)
+        responsibilities = JobFetcher._extract_bullets(clean_text, ["岗位职责", "职位描述", "工作内容", "你将负责"])
+        requirements = JobFetcher._extract_bullets(clean_text, ["任职要求", "职位要求", "岗位要求", "我们希望你"])
+
+        if not responsibilities:
+            responsibilities = JobFetcher._fallback_sentences(clean_text)
+
+        return JobInfo(
+            source_url=url,
+            title=title_text,
+            company=company,
+            salary=salary,
+            location=location,
+            responsibilities=responsibilities,
+            requirements=requirements,
+            original_text=clean_text,
+        )
+
+    @staticmethod
+    def _extract_salary(text: str) -> str | None:
+        match = re.search(r"(\d{1,2}\s*[-~]\s*\d{1,2}\s*[kK万Ww])", text)
+        return match.group(1).replace(" ", "") if match else None
+
+    @staticmethod
+    def _extract_location(text: str) -> str | None:
+        match = re.search(r"工作地点[：:]?\s*([^\n]{2,20})", text)
+        if not match:
+            return None
+        return JobFetcher._clean(match.group(1))
 
     @staticmethod
     def _pick_first_text(soup: BeautifulSoup, selectors: list[str]) -> str | None:
@@ -146,7 +181,6 @@ class JobFetcher:
     def _extract_company_from_title(title_tag: str) -> str | None:
         if not title_tag:
             return None
-        # 常见标题模式："职位-公司-地点_薪资"
         parts = [p.strip() for p in re.split(r"[-_|]", title_tag) if p.strip()]
         if len(parts) >= 2:
             cand = JobFetcher._clean(parts[1])

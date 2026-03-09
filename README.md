@@ -34,7 +34,8 @@ JD-Master/
 ## 2. 功能实现说明
 
 - **简历解析**：支持 docx / pdf，提取个人信息、工作经历、教育、技能、项目等结构化片段。
-- **岗位抓取**：基于 `httpx + BeautifulSoup` 抓取岗位页，提取职位名称、职责、要求等。
+- **岗位抓取（默认）**：基于真实浏览器访问页面 + OCR识别文本（更接近人类查看页面）。
+- **岗位抓取（兼容）**：支持 `httpx + BeautifulSoup` 传统解析作为回退。
 - **AI 优化**：
   - 默认 `mock` 模式（无密钥即可运行，便于本地演示）
   - 可切换 `doubao` 模式（配置 API Key 后调用豆包接口）
@@ -49,6 +50,7 @@ cd backend
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+python -m playwright install chromium
 cp .env.example .env
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
@@ -72,6 +74,7 @@ cd backend
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+python -m playwright install chromium
 cp .env.example .env
 uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
@@ -121,6 +124,9 @@ AI_PROVIDER=doubao
 DOUBAO_API_KEY=your_api_key
 DOUBAO_BASE_URL=https://ark.cn-beijing.volces.com/api/v3
 DOUBAO_MODEL=doubao-seed-1-6-250615
+
+# 岗位JD抓取模式：ocr_browser(浏览器+OCR) / http(传统HTTP解析)
+JD_FETCH_MODE=ocr_browser
 ```
 
 > 安全建议：生产环境请将密钥存储在密钥管理服务中，不要硬编码。
