@@ -63,6 +63,28 @@ npm run dev -- --host 0.0.0.0 --port 5173
 
 打开 `http://localhost:5173`。
 
+## 3.3 一分钟快速体验（无需安装前端依赖）
+
+如果你当前环境无法执行 `npm install`，可以直接使用后端内置体验页：
+
+```bash
+cd backend
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env
+uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
+
+然后访问：`http://localhost:8000/`
+
+你可以在该页面直接：
+- 上传 `docx/pdf` 简历
+- 粘贴 Boss 岗位链接
+- 点击“开始优化”
+- 点击“下载 DOCX”
+
+
 ## 4. Docker 启动
 
 ```bash
